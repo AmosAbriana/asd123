@@ -164,6 +164,11 @@
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="none" stroke="red" stroke-width="2"/></svg>') 12 12, auto;
         }
 
+        .drawing-canvas.reminder-mode {
+            pointer-events: none;
+            cursor: default;
+        }
+
         .status-bar {
             padding: 10px 15px;
             text-align: center;
@@ -205,6 +210,139 @@
         .clear-btn:active {
             opacity: 0.7;
         }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--tg-theme-bg-color, #ffffff);
+            border-radius: 15px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+            border-radius: 8px;
+            font-size: 16px;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+
+        .priority-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .priority-btn {
+            padding: 12px;
+            border: 2px solid;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            background: var(--tg-theme-bg-color, #ffffff);
+            transition: all 0.2s;
+        }
+
+        .priority-btn.low {
+            border-color: #4caf50;
+            color: #4caf50;
+        }
+
+        .priority-btn.medium {
+            border-color: #2196f3;
+            color: #2196f3;
+        }
+
+        .priority-btn.high {
+            border-color: #ff9800;
+            color: #ff9800;
+        }
+
+        .priority-btn.urgent {
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        .priority-btn.active {
+            background: currentColor;
+            color: white;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .modal-btn.primary {
+            background: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+        }
+
+        .modal-btn.secondary {
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            color: var(--tg-theme-text-color, #000000);
+        }
+
+        .day-cell-bg.has-reminder::after {
+            content: "🔔";
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 14px;
+            z-index: 5;
+        }
     </style>
 </head>
 <body>
@@ -220,6 +358,7 @@
     <div class="tools">
         <button class="tool-btn active" id="pencilBtn">✏️ Карандаш</button>
         <button class="tool-btn" id="eraserBtn">🧹 Ластик</button>
+        <button class="tool-btn" id="reminderBtn">🔔 Напоминание</button>
     </div>
 
     <div class="canvas-container">
@@ -230,16 +369,51 @@
     <div class="status-bar" id="status">Режим карандаша: рисуйте на календаре</div>
     <button class="save-btn" id="saveBtn">💾 Сохранить изменения</button>
 
+    <!-- Модальное окно для напоминания -->
+    <div class="modal" id="reminderModal">
+        <div class="modal-content">
+            <div class="modal-header">🔔 Создать напоминание</div>
+            <div class="form-group">
+                <label class="form-label">Дата:</label>
+                <input type="text" class="form-input" id="reminderDate" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Текст напоминания:</label>
+                <input type="text" class="form-input" id="reminderText" placeholder="Введите текст напоминания">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Время (ЧЧ:ММ):</label>
+                <input type="text" class="form-input" id="reminderTime" placeholder="14:30" maxlength="5">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Приоритет:</label>
+                <div class="priority-buttons">
+                    <button class="priority-btn low" data-priority="low">🟢 Низкий</button>
+                    <button class="priority-btn medium active" data-priority="medium">🔵 Средний</button>
+                    <button class="priority-btn high" data-priority="high">🟠 Высокий</button>
+                    <button class="priority-btn urgent" data-priority="urgent">🔴 Срочно</button>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="cancelReminder">Отмена</button>
+                <button class="modal-btn primary" id="saveReminder">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
 
         let currentDate = new Date();
-        let currentMode = 'pencil'; // 'pencil' or 'eraser'
+        let currentMode = 'pencil'; // 'pencil', 'eraser', or 'reminder'
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
+        let selectedDate = null;
+        let selectedPriority = 'medium';
+        let reminders = {}; // { 'YYYY-MM-DD': [...] }
 
         const canvas = document.getElementById('drawingCanvas');
         const ctx = canvas.getContext('2d');
@@ -314,16 +488,28 @@
             for (let day = 1; day <= daysInMonth; day++) {
                 const cell = document.createElement('div');
                 const date = new Date(year, month, day);
+                const dateStr = formatDate(date);
                 
                 cell.className = 'day-cell-bg';
                 if (isToday(date)) {
                     cell.classList.add('today');
+                }
+                
+                // Проверяем наличие напоминаний
+                if (reminders[dateStr] && reminders[dateStr].length > 0) {
+                    cell.classList.add('has-reminder');
                 }
 
                 const dayNum = document.createElement('div');
                 dayNum.className = 'day-number';
                 dayNum.textContent = day;
                 cell.appendChild(dayNum);
+                
+                // Обработчик клика для режима напоминания
+                if (currentMode === 'reminder') {
+                    cell.style.cursor = 'pointer';
+                    cell.addEventListener('click', () => openReminderModal(dateStr, date));
+                }
 
                 calendarBg.appendChild(cell);
             }
@@ -413,30 +599,130 @@
             }
         }
 
-        // Обработчики событий для мыши
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
-
-        // Обработчики событий для касаний
-        canvas.addEventListener('touchstart', startDrawing, { passive: false });
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', stopDrawing, { passive: false });
-        canvas.addEventListener('touchcancel', stopDrawing, { passive: false });
+        // Обработчики событий для мыши (только в режимах рисования)
+        function setupDrawingEvents() {
+            if (currentMode === 'pencil' || currentMode === 'eraser') {
+                canvas.addEventListener('mousedown', startDrawing);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseleave', stopDrawing);
+                canvas.addEventListener('touchstart', startDrawing, { passive: false });
+                canvas.addEventListener('touchmove', draw, { passive: false });
+                canvas.addEventListener('touchend', stopDrawing, { passive: false });
+                canvas.addEventListener('touchcancel', stopDrawing, { passive: false });
+            } else {
+                canvas.removeEventListener('mousedown', startDrawing);
+                canvas.removeEventListener('mousemove', draw);
+                canvas.removeEventListener('mouseup', stopDrawing);
+                canvas.removeEventListener('mouseleave', stopDrawing);
+                canvas.removeEventListener('touchstart', startDrawing);
+                canvas.removeEventListener('touchmove', draw);
+                canvas.removeEventListener('touchend', stopDrawing);
+                canvas.removeEventListener('touchcancel', stopDrawing);
+            }
+        }
+        
+        setupDrawingEvents();
 
         function setMode(mode) {
             currentMode = mode;
             document.getElementById('pencilBtn').classList.toggle('active', mode === 'pencil');
             document.getElementById('eraserBtn').classList.toggle('active', mode === 'eraser');
+            document.getElementById('reminderBtn').classList.toggle('active', mode === 'reminder');
             canvas.classList.toggle('eraser', mode === 'eraser');
+            canvas.classList.toggle('reminder-mode', mode === 'reminder');
+            
+            // Настраиваем события рисования
+            setupDrawingEvents();
+            
+            // Перерисовываем календарь для обновления обработчиков
+            renderCalendar();
             
             const status = document.getElementById('status');
             if (mode === 'pencil') {
                 status.textContent = 'Режим карандаша: рисуйте на календаре';
             } else if (mode === 'eraser') {
                 status.textContent = 'Режим ластика: стирайте рисунки';
+            } else if (mode === 'reminder') {
+                status.textContent = 'Режим напоминания: выберите дату для создания напоминания';
             }
+        }
+        
+        function openReminderModal(dateStr, date) {
+            selectedDate = dateStr;
+            const modal = document.getElementById('reminderModal');
+            const dateInput = document.getElementById('reminderDate');
+            const textInput = document.getElementById('reminderText');
+            const timeInput = document.getElementById('reminderTime');
+            
+            const day = date.getDate();
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            dateInput.value = `${day}.${month}.${year}`;
+            textInput.value = '';
+            timeInput.value = '';
+            selectedPriority = 'medium';
+            
+            // Сброс выбора приоритета
+            document.querySelectorAll('.priority-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.priority === 'medium') {
+                    btn.classList.add('active');
+                }
+            });
+            
+            modal.classList.add('active');
+            textInput.focus();
+        }
+        
+        function closeReminderModal() {
+            document.getElementById('reminderModal').classList.remove('active');
+        }
+        
+        function saveReminder() {
+            const text = document.getElementById('reminderText').value.trim();
+            const time = document.getElementById('reminderTime').value.trim();
+            
+            if (!text) {
+                tg.showAlert('Введите текст напоминания');
+                return;
+            }
+            
+            if (!time || !/^\d{2}:\d{2}$/.test(time)) {
+                tg.showAlert('Введите время в формате ЧЧ:ММ (например, 14:30)');
+                return;
+            }
+            
+            const [hours, minutes] = time.split(':').map(Number);
+            if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+                tg.showAlert('Неверное время');
+                return;
+            }
+            
+            const data = {
+                action: 'save_reminder',
+                date: selectedDate,
+                text: text,
+                time: time,
+                priority: selectedPriority
+            };
+            
+            // Сохраняем локально
+            if (!reminders[selectedDate]) {
+                reminders[selectedDate] = [];
+            }
+            reminders[selectedDate].push({
+                text: text,
+                time: time,
+                priority: selectedPriority
+            });
+            
+            // Отправляем в бот
+            tg.sendData(JSON.stringify(data));
+            tg.showAlert('Напоминание создано!');
+            
+            closeReminderModal();
+            renderCalendar();
         }
 
         function saveDrawing() {
@@ -489,8 +775,38 @@
         // Обработчики событий
         document.getElementById('pencilBtn').addEventListener('click', () => setMode('pencil'));
         document.getElementById('eraserBtn').addEventListener('click', () => setMode('eraser'));
+        document.getElementById('reminderBtn').addEventListener('click', () => setMode('reminder'));
         document.getElementById('saveBtn').addEventListener('click', saveDrawing);
         document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+        
+        // Обработчики модального окна
+        document.getElementById('cancelReminder').addEventListener('click', closeReminderModal);
+        document.getElementById('saveReminder').addEventListener('click', saveReminder);
+        
+        // Выбор приоритета
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedPriority = btn.dataset.priority;
+            });
+        });
+        
+        // Закрытие модального окна при клике вне его
+        document.getElementById('reminderModal').addEventListener('click', (e) => {
+            if (e.target.id === 'reminderModal') {
+                closeReminderModal();
+            }
+        });
+        
+        // Валидация времени
+        document.getElementById('reminderTime').addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.slice(0, 2) + ':' + value.slice(2, 4);
+            }
+            e.target.value = value.slice(0, 5);
+        });
 
         document.getElementById('prevMonth').addEventListener('click', () => {
             // Сохраняем текущий рисунок перед сменой месяца
