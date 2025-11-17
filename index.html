@@ -769,6 +769,7 @@
                 return;
             }
             
+            // Сохраняем локально для отображения
             if (!reminders[selectedDate]) {
                 reminders[selectedDate] = [];
             }
@@ -778,6 +779,7 @@
                 priority: selectedPriority
             });
             
+            // Отправляем в бот для сохранения в базу данных
             const data = {
                 action: 'save_reminder',
                 date: selectedDate,
@@ -786,8 +788,13 @@
                 priority: selectedPriority
             };
             
-            tg.sendData(JSON.stringify(data));
-            tg.showAlert('Напоминание создано!');
+            try {
+                tg.sendData(JSON.stringify(data));
+                tg.showAlert('Напоминание создано!');
+            } catch (e) {
+                console.error('Ошибка отправки напоминания:', e);
+                tg.showAlert('Ошибка сохранения напоминания');
+            }
             
             closeReminderModal();
             renderCalendar();
